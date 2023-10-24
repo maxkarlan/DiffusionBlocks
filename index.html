@@ -7,38 +7,31 @@
     <title>DiffusionBlocks</title>
     <style>
         body {
-    margin: 0;
-    overflow: hidden;
-}
+            margin: 0;
+            overflow: hidden;
+        }
 
-canvas {
-    display: block;
-}
+        canvas {
+            display: block;
+        }
     </style>
 </head>
 
 <body>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
-    <!-- If you're not using ES6 modules in your JS, you can remove type="module" -->
     <script>
-
-// let grid, next;
-// let dA = 01; // Adjusted diffusion rate for A
-// let dB = 0.125; // Adjusted diffusion rate for B
-// let dC = .05;
-// let feed = 0.0367; // Adjusted feed rate
-// let kill = 0.0649; // Adjusted kill rate
-let colorA, colorB, colorC;
-let offScreenCanvas;
-let sizeChoice = [25, 50, 75, 100, 125];
-let canvasSize;
-let offsetX, offsetY;
-let gridSizeChoice = [1, 2, 3, 4];
-let gridSize;
-let grid = [];
-let next = [];
-let sectionPalettes = [];
-let mergedSections = {}; // Keeps track of sections that have been merged
+        let colorA, colorB, colorC;
+        let offScreenCanvas;
+        let sizeChoice = [50, 75, 100];
+        let canvasSize;
+        let offsetX, offsetY;
+        let gridSizeChoice = [1, 2, 3, 4];
+        let gridSize;
+        let grid = [];
+        let next = [];
+        let sectionConnectionBlocks = []
+        let sectionPalettes = [];
+// let mergedSections = {}; // Keeps track of sections that have been merged
 let colorPalettes = [
   // Palette 1
   [[255, 0, 0], [0, 102, 255], [255, 204, 0]],
@@ -53,156 +46,176 @@ let colorPalettes = [
   [[255, 0, 128], [102, 255, 51], [0, 102, 255]],
   
   // Palette 5
-  [[204, 0, 255], [255, 255, 51], [0, 153, 204]],
-  
-  // Palette 6
-  [[255, 0, 51], [102, 204, 0], [255, 102, 204]],
-  
-  // Palette 7
-  [[255, 102, 0], [0, 153, 255], [255, 255, 0]],
-  
-  // Palette 8
-  [[204, 255, 0], [51, 102, 255], [255, 0, 51]],
-  
-  // Palette 9
-  [[255, 51, 51], [0, 204, 102], [255, 153, 0]],
-  
-  // Palette 10
-  [[255, 51, 153], [0, 255, 102], [204, 0, 255]]
+  [[204, 0, 255], [255, 255, 51], [0, 153, 204]]
 ];
 
 
 function setup() {
-  dA = random(.5, 1); // Adjusted diffusion rate for A
-  dB = random(0.05, 0.25); // Adjusted diffusion rate for B
-  dC = random(0.05, 0.15);
-  feed = random(0.03, 0.04);
-  kill = random(0.057, 0.065);
-  gridSize = random(gridSizeChoice);
-  createCanvas(windowWidth, windowHeight);
-  canvasSize = int(floor(random(sizeChoice)));
-  offsetX = (width - canvasSize) / 2;
-  offsetY = (height - canvasSize) / 2;
+            dA = random(.5, 1);
+            dB = random(0.05, 0.25);
+            dC = random(0.05, 0.15);
+            feed = random(0.03, 0.04);
+            kill = random(0.057, 0.065);
+            gridSize = random(gridSizeChoice);
+            createCanvas(windowWidth, windowHeight);
+            canvasSize = int(floor(random(sizeChoice)));
+            offsetX = (width - canvasSize) / 2;
+            offsetY = (height - canvasSize) / 2;
 
-  // Assign palettes to sections
-  for (let i = 0; i < gridSize; i++) {
-    sectionPalettes[i] = [];
-    for (let j = 0; j < gridSize; j++) {
-        let randomPaletteIndex = floor(random(colorPalettes.length));
-        sectionPalettes[i][j] = colorPalettes[randomPaletteIndex];
+            for (let i = 0; i < gridSize; i++) {
+                sectionPalettes[i] = [];
+                for (let j = 0; j < gridSize; j++) {
+                    let randomPaletteIndex = floor(random(colorPalettes.length));
+                    sectionPalettes[i][j] = colorPalettes[randomPaletteIndex];
+                }
+            }
+
+            for (let x = 0; x < canvasSize; x++) {
+                grid[x] = [];
+                next[x] = [];
+                for (let y = 0; y < canvasSize; y++) {
+                    grid[x][y] = { a: 1, b: 0 }; // Setting default values
+                    next[x][y] = { a: 1, b: 0 };
+                    grid[x][y].c = 0;
+                    next[x][y].c = 0;
+                }
+            }
+
+            shuffle(colorPalettes, true);
+
+            for (let i = 1; i < gridSize; i++) {
+                for (let j = 1; j < gridSize; j++) {
+                    let paletteIndex = i * gridSize + j;
+                    if (paletteIndex >= colorPalettes.length) continue;
+                    let currentPalette = colorPalettes[paletteIndex];
+                    let sectionWidth = canvasSize / gridSize;
+                    let sectionHeight = canvasSize / gridSize;
+                    initRectangleInCenter(i, j, sectionWidth, sectionHeight, currentPalette);
+                }
+            }
+
+            frameRate(120);
+            offScreenCanvas = createGraphics(canvasSize, canvasSize);
+        }
+
+        function initRectangleInCenter(i, j, sectionWidth, sectionHeight, palette) {
+            let centerX = i * sectionWidth + sectionWidth / 2;
+            let centerY = j * sectionHeight + sectionHeight / 2;
+            let rectWidth = sectionWidth * 0.2;
+            let rectHeight = sectionHeight * 0.2;
+            let startX = Math.max(0, Math.floor(centerX - rectWidth / 2));
+            let endX = Math.min(canvasSize, Math.ceil(centerX + rectWidth / 2));
+            let startY = Math.max(0, Math.floor(centerY - rectHeight / 2));
+            let endY = Math.min(canvasSize, Math.ceil(centerY + rectHeight / 2));
+
+            for (let x = startX; x < endX; x++) {
+                for (let y = startY; y < endY; y++) {
+                    grid[x][y].b = 1;  // Seeding chemical B based on the blocks
+                    grid[x][y].palette = palette;
+                }
+            }
+        }
+
+        function drawSectionConnections() {
+    let centroids = computeCentroids();
+    let sectionGirth = canvasSize / gridSize;
+    let blockWidth = sectionGirth * 0.35;
+    let blockLength = sectionGirth + blockWidth; // Increased length
+    let visited = {};
+    offScreenCanvas.noStroke();
+
+    for (let i = 0; i < gridSize; i++) {
+        for (let j = 0; j < gridSize; j++) {
+            let currentPalette = sectionPalettes[i][j];
+            let neighbors = [
+                { dx: 0, dy: -1 }, // up
+                { dx: 0, dy: 1 },  // down
+                { dx: -1, dy: 0 }, // left
+                { dx: 1, dy: 0 }   // right
+            ];
+
+            for (let n of neighbors) {
+                let ni = i + n.dx;
+                let nj = j + n.dy;
+
+                if (ni >= 0 && ni < gridSize && nj >= 0 && nj < gridSize) {
+                    let neighborPalette = sectionPalettes[ni][nj];
+                    let key1 = `${i},${j},${ni},${nj}`;
+                    let key2 = `${ni},${nj},${i},${j}`;
+
+                    if (isEqualPalette(currentPalette, neighborPalette) && !visited[key1] && !visited[key2]) {
+                        // Use the color of chemicalB from the section's color palette
+                        let chemicalBColor = color(currentPalette[1][0], currentPalette[1][1], currentPalette[1][2], 155); // 50% transparency
+                        offScreenCanvas.fill(chemicalBColor);
+
+                        let start = centroids[i][j];
+                        let end = centroids[ni][nj];
+                        let rectX, rectY, rectWidth, rectHeight;
+
+                        if (n.dx !== 0) { // left or right
+                            rectX = start.x - blockWidth/2 * n.dx;
+                            rectY = start.y - blockWidth/2;
+                            rectWidth = blockLength * n.dx;
+                            rectHeight = blockWidth;
+                        } else { // up or down
+                            rectX = start.x - blockWidth/2;
+                            rectY = start.y - blockWidth/2 * n.dy;
+                            rectWidth = blockWidth;
+                            rectHeight = blockLength * n.dy;
+                        }
+
+                        // Setting chemical B values for the grid locations covered by the rectangle
+                        for (let rx = Math.floor(rectX); rx < rectX + rectWidth; rx++) {
+                            for (let ry = Math.floor(rectY); ry < rectY + rectHeight; ry++) {
+                                if (rx >= 0 && ry >= 0 && rx < canvasSize && ry < canvasSize) {
+                                    grid[rx][ry].b = 1;
+                                }
+                            }
+                        }
+
+                        offScreenCanvas.rect(rectX, rectY, rectWidth, rectHeight);
+                        visited[key1] = true;
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+
+function computeCentroids() {
+    let centroids = [];
+
+    for (let i = 0; i < gridSize; i++) {
+        centroids[i] = [];
+        for (let j = 0; j < gridSize; j++) {
+            let sectionWidth = canvasSize / gridSize;
+            let sectionHeight = canvasSize / gridSize;
+
+            let centerX = (i + 0.5) * sectionWidth;
+            let centerY = (j + 0.5) * sectionHeight;
+
+            centroids[i][j] = { x: centerX, y: centerY };
         }
     }
 
-  for (let x = 0; x < canvasSize; x++) {
-    grid[x] = [];
-    next[x] = [];
-    for (let y = 0; y < canvasSize; y++) {
-      grid[x][y] = { a: 1, b: 0 };
-      next[x][y] = { a: 1, b: 0 };
-      grid[x][y].c = 0;  // initialize C to 0 everywhere
-      next[x][y].c = 0;
-    }
-  }
-
-  shuffle(colorPalettes, true); // Shuffle the palettes
-
-  for (let i = 1; i < gridSize; i++) {
-    for (let j = 1; j < gridSize; j++) {
-      let paletteIndex = i * gridSize + j;
-      if (paletteIndex >= colorPalettes.length) continue;
-      let currentPalette = colorPalettes[paletteIndex];
-
-      let mergedVertically = mergedSections[`${i + 1},${j}`] === true;
-      let mergedHorizontally = mergedSections[`${i},${j + 1}`] === true;
-
-      if (mergedSections[`${i},${j}`]) continue; // Skip sections that have been merged
-
-      let sectionWidth = canvasSize / gridSize;
-      let sectionHeight = canvasSize / gridSize; // Assuming a square grid, adjust if it's a rectangular grid.
-
-      // If a section has been merged and is 2x1:
-      if (mergedVertically) {
-        sectionHeight *= 2;
-      }
-      // If a section has been merged and is 1x2:
-      if (mergedHorizontally) {
-        sectionWidth *= 2;
-    }
-
-initRectangleInCenter(i, j, sectionWidth, sectionHeight, currentPalette);
-
-// Check for neighbors with the same palette
-if (i + 1 < gridSize && colorPalettes[(i + 1) * gridSize + j] === currentPalette) {
-  sectionHeight = 2; 
-  mergedSections[`${i + 1},${j}`] = true;
-} else if (j + 1 < gridSize && colorPalettes[i * gridSize + j + 1] === currentPalette) {
-  sectionWidth = 2; 
-  mergedSections[`${i},${j + 1}`] = true;
+    return centroids;
 }
 
-      // Check for neighbors with the same palette
-      if (i + 1 < gridSize && colorPalettes[(i + 1) * gridSize + j] === currentPalette) {
-        sectionHeight *= 2; // Double the height if we merge vertically
-        mergedSections[`${i + 1},${j}`] = true;
-      } else if (j + 1 < gridSize && colorPalettes[i * gridSize + j + 1] === currentPalette) {
-        sectionWidth *= 2; // Double the width if we merge horizontally
-        mergedSections[`${i},${j + 1}`] = true;
-      }
-
-      initMergedSection(i, j, sectionWidth, sectionHeight, currentPalette);
+function isEqualPalette(palette1, palette2) {
+    for (let i = 0; i < palette1.length; i++) {
+        for (let j = 0; j < palette1[i].length; j++) {
+            if (palette1[i][j] !== palette2[i][j]) return false;
+        }
     }
-  }
 
-
-  // Assign random colors to chemicals A and B
-  // colorA = color(random(255), random(255), random(255));
-  // colorB = color(random(255), random(255), random(255));
-  // colorC = color(random(255), random(255), random(255));
-
-  frameRate(120);
-
-  offScreenCanvas = createGraphics(canvasSize, canvasSize);
-}
-
-function initMergedSection(i, j, sectionWidth, sectionHeight, palette) {
-  let startX = i;
-  let endX = i + sectionWidth;
-  let startY = j;
-  let endY = j + sectionHeight;
-
-  for (let x = startX; x < endX; x++) {
-    for (let y = startY; y < endY; y++) {
-      if(grid[x] && grid[x][y]) { // Ensure that the grid cell exists before modifying
-        grid[x][y].b = 1;
-        grid[x][y].palette = palette; 
-      }
-    }
-  }
-}
-
-function initRectangleInCenter(i, j, sectionWidth, sectionHeight, palette) {
-  let centerX = i * sectionWidth + sectionWidth / 2;
-  let centerY = j * sectionHeight + sectionHeight / 2;
-
-  // Define the size of the rectangle as 20% of the section width and height
-  let rectWidth = sectionWidth * 0.2;
-  let rectHeight = sectionHeight * 0.2;
-
-  let startX = Math.max(0, Math.floor(centerX - rectWidth / 2));
-  let endX = Math.min(canvasSize, Math.ceil(centerX + rectWidth / 2));
-  let startY = Math.max(0, Math.floor(centerY - rectHeight / 2));
-  let endY = Math.min(canvasSize, Math.ceil(centerY + rectHeight / 2));
-
-  for (let x = startX; x < endX; x++) {
-    for (let y = startY; y < endY; y++) {
-      grid[x][y].b = 1;
-      grid[x][y].palette = palette; // Assign the selected palette to the current square
-    }
-  }
+    return true;
 }
 
 function draw() {
  
+  drawSectionConnections();
 
   offScreenCanvas.background(220);
 
@@ -214,9 +227,10 @@ function draw() {
       let a = grid[x][y].a;
       let b = grid[x][y].b;
       let c = grid[x][y].c;
-      next[x][y].a = constrain(a + (dA * laplaceA(x, y)) - (a * b * b) + (feed * (1 - a)) - 1, 0, 0);
-      next[x][y].b = constrain(b + (dB * laplaceB(x, y)) + (a * b * b) - ((kill + feed) * b), 0, 0);
-      next[x][y].c = constrain(c + (dC * laplaceC(x, y)) - (a * b * c) + (feed * (1 - c)), 0, 2);
+      next[x][y].a = constrain(a + (dA * laplaceA(x, y)) - (a * b * b) + (feed * (1 - a)), 0, 1);
+      next[x][y].b = constrain(b + (dB * laplaceB(x, y)) + (a * b * b) - ((kill + feed) * b), 0, 1);
+      next[x][y].c = constrain(c + (dC * laplaceC(x, y)) - (a * b * c) + (feed * (1 - c)), 0, 1);
+
     }
   }
 
@@ -238,12 +252,37 @@ function draw() {
                 }
             }
   offScreenCanvas.updatePixels();
+  drawBoundaries();
+  // Draw the connections between sections
   swap();
 
   // Now, display the content of offscreenCanvas on the main canvas
   // Calculate scale factor based on smaller dimension of the window
   let scaleFactor = min(windowWidth, windowHeight) / canvasSize;
   image(offScreenCanvas, (windowWidth - canvasSize * scaleFactor) / 2, (windowHeight - canvasSize * scaleFactor) / 2, canvasSize * scaleFactor, canvasSize * scaleFactor);
+}
+
+function drawBoundaries() {
+    offScreenCanvas.stroke(0); // Black color for boundaries
+    let sectionWidth = canvasSize / gridSize;
+    let sectionHeight = canvasSize / gridSize;
+
+    for (let i = 0; i < gridSize; i++) {
+        for (let j = 0; j < gridSize; j++) {
+            // Check for boundary on the right
+            if (i < gridSize - 1 && !arraysEqual(sectionPalettes[i][j], sectionPalettes[i + 1][j])) {
+                offScreenCanvas.line((i + 1) * sectionWidth, j * sectionHeight, (i + 1) * sectionWidth, (j + 1) * sectionHeight);
+            }
+            // Check for boundary on the bottom
+            if (j < gridSize - 1 && !arraysEqual(sectionPalettes[i][j], sectionPalettes[i][j + 1])) {
+                offScreenCanvas.line(i * sectionWidth, (j + 1) * sectionHeight, (i + 1) * sectionWidth, (j + 1) * sectionHeight);
+            }
+        }
+    }
+}
+
+function arraysEqual(a, b) {
+    return JSON.stringify(a) === JSON.stringify(b);
 }
 
 function laplaceA(x, y) {
