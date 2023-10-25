@@ -30,9 +30,9 @@
         let grid = [];
         let next = [];
         let sectionConnectionBlocks = []
-        let skipFrames = 0;
         let sectionPalettes = [];
         let colorPalettes = [];
+        let drawBoundariesFlag = Math.random() < 0.5;
         let themedPalettes = {
 // Set 1: Oceanic Adventures
 "Oceanic Adventures": [
@@ -44,10 +44,10 @@
 
 // Set 2: City Vibes
 "City Vibes": [
-    [[255, 255, 244], [217, 217, 217], [120, 180, 230]],
-    [[100, 100, 187], [255, 244, 195], [203, 75, 203]],
-    [[210, 87, 87], [255, 210, 75], [255, 253, 235]],
-    [[255, 94, 25], [244, 137, 172], [160, 160, 160]]
+[[255, 255, 244], [80, 80, 80], [30, 130, 240]], // Lightest, darkest, then a vibrant blue
+[[50, 50, 187], [255, 240, 50], [255, 0, 170]], // Deep blue, bright yellow, and hot pink
+[[210, 10, 10], [255, 255, 0], [0, 170, 0]], // Strong red, bright yellow, and green
+[[255, 40, 0], [240, 0, 140], [0, 0, 0]] // Orange-red, deep pink, and black
 ],
 
 // Set 3: Enchanted Forest
@@ -120,29 +120,11 @@
   [[204, 0, 255], [255, 255, 51], [0, 153, 204]]
 ]
 };
-// let mergedSections = {}; // Keeps track of sections that have been merged
-// let colorPalettes = [
-  // Palette 1
-//   [[255, 0, 0], [0, 102, 255], [255, 204, 0]],
-  
-  // Palette 2
-//   [[255, 128, 0], [0, 153, 51], [255, 0, 153]],
-  
-  // Palette 3
-//   [[255, 255, 0], [51, 204, 204], [255, 102, 0]],
-  
-  // Palette 4
-//   [[255, 0, 128], [102, 255, 51], [0, 102, 255]],
-  
-  // Palette 5
-//   [[204, 0, 255], [255, 255, 51], [0, 153, 204]]
-// ];
-
 
 function setup() {
-            dA = random(.75, 1);
+            dA = random(.95, 1);
             console.log("Current dA:", dA);  // Log the theme name to the console
-            dB = random(0.05, 0.2);
+            dB = random(0.05, 0.15);
             console.log("Current dB:", dB);  // Log the theme name to the console
             dC = random(0.1, 0.2);
             console.log("Current dC:", dC);  // Log the theme name to the console
@@ -151,8 +133,11 @@ function setup() {
             kill = random(0.057, 0.065);
             console.log("Current kill:", kill);  // Log the theme name to the console
             gridSize = random(gridSizeChoice);
+            console.log("Grid Size:", gridSize);
+            pixelDensity(7);
             createCanvas(windowWidth, windowHeight);
             canvasSize = int(floor(random(sizeChoice)));
+            console.log("Canvas Size:", canvasSize);
             offsetX = (width - canvasSize) / 2;
             offsetY = (height - canvasSize) / 2;
 
@@ -193,7 +178,8 @@ function setup() {
                 }
             }
 
-            frameRate(120);
+            frameRate(180);
+            console.log("frame rate", frameRate());
             offScreenCanvas = createGraphics(canvasSize, canvasSize);
         }
 
@@ -312,68 +298,65 @@ function isEqualPalette(palette1, palette2) {
     return true;
 }
 
-function mousePressed() {
-    if (mouseX > 0 && mouseX < width && mouseY > 0 && mouseY < height) {
-        skipFrames = 75;
-    }
-}
+// function mousePressed() {
+//     if (mouseX > 0 && mouseX < width && mouseY > 0 && mouseY < height) {
+//         skipFrames = 50;
+//     }
+// }
 
 function draw() {
-    let iterations = (skipFrames > 0) ? skipFrames : 1;
-    for (let i = 0; i < iterations; i++) {
-        drawSectionConnections();
+    drawSectionConnections();
 
-        // Cache these values to avoid recalculating them in every iteration of the loop
-        let canvasSizeMinusOne = canvasSize - 1;
-        let gridSizeRatio = canvasSize / gridSize;
+    // Cache these values to avoid recalculating them in every iteration of the loop
+    let canvasSizeMinusOne = canvasSize - 1;
+    let gridSizeRatio = canvasSize / gridSize;
 
-        for (let x = 1; x < canvasSizeMinusOne; x++) {
-            for (let y = 1; y < canvasSizeMinusOne; y++) {
-                let gridXY = grid[x][y];
-                let nextXY = next[x][y];
-                let a = gridXY.a;
-                let b = gridXY.b;
-                let c = gridXY.c;
-                nextXY.a = constrain(a + (dA * laplaceA(x, y)) - (a * b * b) + (feed * (1 - a)), 0, 1);
-                nextXY.b = constrain(b + (dB * laplaceB(x, y)) + (a * b * b) - ((kill + feed) * b), 0, 1);
-                nextXY.c = constrain(c + (dC * laplaceC(x, y)) - (a * b * c) + (feed * (1 - c)), 0, 1);
-            }
+    for (let x = 1; x < canvasSizeMinusOne; x++) {
+        for (let y = 1; y < canvasSizeMinusOne; y++) {
+            let gridXY = grid[x][y];
+            let nextXY = next[x][y];
+            let a = gridXY.a;
+            let b = gridXY.b;
+            let c = gridXY.c;
+            nextXY.a = constrain(a + (dA * laplaceA(x, y)) - (a * b * b) + (feed * (1 - a)), 0, 1);
+            nextXY.b = constrain(b + (dB * laplaceB(x, y)) + (a * b * b) - ((kill + feed) * b), 0, 1);
+            nextXY.c = constrain(c + (dC * laplaceC(x, y)) - (a * b * c) + (feed * (1 - c)), 0, 1);
         }
-
-        if (i === iterations - 1 || skipFrames === 0) {
-            offScreenCanvas.background(220);
-            offScreenCanvas.loadPixels();
-            for (let x = 0; x < canvasSize; x++) {
-                for (let y = 0; y < canvasSize; y++) {
-                    let i = floor(x / gridSizeRatio);
-                    let j = floor(y / gridSizeRatio);
-                    let selectedPalette = sectionPalettes[i][j];
-                    let nextXY = next[x][y];
-                    let a = nextXY.a;
-                    let b = nextXY.b;
-                    let c = nextXY.c;
-                    let colorA = color(selectedPalette[0][0], selectedPalette[0][1], selectedPalette[0][2]);
-                    let colorB = color(selectedPalette[1][0], selectedPalette[1][1], selectedPalette[1][2]);
-                    let colorC = color(selectedPalette[2][0], selectedPalette[2][1], selectedPalette[2][2]);
-                    let col = lerpColor(lerpColor(colorA, colorB, b), colorC, c);
-                    offScreenCanvas.set(x, y, col);
-                }
-            }
-            offScreenCanvas.updatePixels();
-            drawBoundaries();
-        }
-
-        swap();
     }
+
+    offScreenCanvas.background(220);
+    offScreenCanvas.loadPixels();
+    for (let x = 0; x < canvasSize; x++) {
+        for (let y = 0; y < canvasSize; y++) {
+            let i = floor(x / gridSizeRatio);
+            let j = floor(y / gridSizeRatio);
+            let selectedPalette = sectionPalettes[i][j];
+            let nextXY = next[x][y];
+            let a = nextXY.a;
+            let b = nextXY.b;
+            let c = nextXY.c;
+            let colorA = color(selectedPalette[0][0], selectedPalette[0][1], selectedPalette[0][2]);
+            let colorB = color(selectedPalette[1][0], selectedPalette[1][1], selectedPalette[1][2]);
+            let colorC = color(selectedPalette[2][0], selectedPalette[2][1], selectedPalette[2][2]);
+            let col = lerpColor(lerpColor(colorA, colorB, b), colorC, c);
+            offScreenCanvas.set(x, y, col);
+        }
+    }
+    offScreenCanvas.updatePixels();
+    
+    if (drawBoundariesFlag) {
+        drawBoundaries(.25, .25);
+    }
+
+    swap();
 
     let scaleFactor = min(windowWidth, windowHeight) / canvasSize;
     image(offScreenCanvas, (windowWidth - canvasSize * scaleFactor) / 2, (windowHeight - canvasSize * scaleFactor) / 2, canvasSize * scaleFactor, canvasSize * scaleFactor);
-
-    skipFrames = 0;
 }
 
-function drawBoundaries() {
+function drawBoundaries(xOffset, yOffset) {
     offScreenCanvas.stroke(0); // Black color for boundaries
+    offScreenCanvas.strokeWeight(.75);
     let sectionWidth = canvasSize / gridSize;
     let sectionHeight = canvasSize / gridSize;
 
@@ -381,11 +364,11 @@ function drawBoundaries() {
         for (let j = 0; j < gridSize; j++) {
             // Check for boundary on the right
             if (i < gridSize - 1 && !arraysEqual(sectionPalettes[i][j], sectionPalettes[i + 1][j])) {
-                offScreenCanvas.line((i + 1) * sectionWidth, j * sectionHeight, (i + 1) * sectionWidth, (j + 1) * sectionHeight);
+                offScreenCanvas.line((i + 1) * sectionWidth + xOffset, j * sectionHeight + yOffset, (i + 1) * sectionWidth + xOffset, (j + 1) * sectionHeight + yOffset);
             }
             // Check for boundary on the bottom
             if (j < gridSize - 1 && !arraysEqual(sectionPalettes[i][j], sectionPalettes[i][j + 1])) {
-                offScreenCanvas.line(i * sectionWidth, (j + 1) * sectionHeight, (i + 1) * sectionWidth, (j + 1) * sectionHeight);
+                offScreenCanvas.line(i * sectionWidth + xOffset, (j + 1) * sectionHeight + yOffset, (i + 1) * sectionWidth + xOffset, (j + 1) * sectionHeight + yOffset);
             }
         }
     }
