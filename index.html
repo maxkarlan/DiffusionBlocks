@@ -22,10 +22,10 @@
     <script>
         let colorA, colorB, colorC;
         let offScreenCanvas;
-        let sizeChoice = [50, 75, 100];
+        let sizeChoice = [25, 50, 75];
         let canvasSize;
         let offsetX, offsetY;
-        let gridSizeChoice = [2, 3, 4, 5, 6];
+        let gridSizeChoice = [2, 3];
         let gridSize;
         let grid = [];
         let next = [];
@@ -167,14 +167,13 @@ function setup() {
 
             shuffle(colorPalettes, true);
 
-            for (let i = 1; i < gridSize; i++) {
-                for (let j = 1; j < gridSize; j++) {
+            for (let i = 0; i < gridSize; i++) {
+                for (let j = 0; j < gridSize; j++) {
                     let paletteIndex = i * gridSize + j;
                     if (paletteIndex >= colorPalettes.length) continue;
                     let currentPalette = colorPalettes[paletteIndex];
                     let sectionWidth = canvasSize / gridSize;
                     let sectionHeight = canvasSize / gridSize;
-                    initRectangleInCenter(i, j, sectionWidth, sectionHeight, currentPalette);
                 }
             }
 
@@ -183,25 +182,7 @@ function setup() {
             offScreenCanvas = createGraphics(canvasSize, canvasSize);
         }
 
-        function initRectangleInCenter(i, j, sectionWidth, sectionHeight, palette) {
-            let centerX = i * sectionWidth + sectionWidth / 2;
-            let centerY = j * sectionHeight + sectionHeight / 2;
-            let rectWidth = sectionWidth * 0.2;
-            let rectHeight = sectionHeight * 0.2;
-            let startX = Math.max(0, Math.floor(centerX - rectWidth / 2));
-            let endX = Math.min(canvasSize, Math.ceil(centerX + rectWidth / 2));
-            let startY = Math.max(0, Math.floor(centerY - rectHeight / 2));
-            let endY = Math.min(canvasSize, Math.ceil(centerY + rectHeight / 2));
-
-            for (let x = startX; x < endX; x++) {
-                for (let y = startY; y < endY; y++) {
-                    grid[x][y].b = 1;  // Seeding chemical B based on the blocks
-                    grid[x][y].palette = palette;
-                }
-            }
-        }
-
-        function drawSectionConnections() {
+    function drawSectionConnections() {
     let centroids = computeCentroids();
     let sectionGirth = canvasSize / gridSize;
     let blockWidth = sectionGirth * 0.35;
